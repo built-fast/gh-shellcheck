@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Usage: gh-shellcheck
+
+if [[ "$GH_SHELLCHECK" ]]; then
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] '
+  set -x
+fi
+
+set -euo pipefail
+
+if [[ "${1:-}" = "-h" ]] || [[ "${1:-}" = "--help" ]]; then
+  sed -ne '/^#/!q;s/^#$/# /;/^# /s/^# //p' < "$0" |
+    awk -v f="${1//-/}" 'f == "h" && $1 == "Usage:" { print; exit }; f != "h"'
+  exit 1
+fi
+
+# Find all bash (or bats) files in the current git repo
+find_bash_files() {
+  {
+    git ls-files '**.sh' '**.bash' '**.bats' 2>/dev/null
+
+    git grep --untracked -l -e '^#!/bin/bash' -e '^#!/usr/bin/env bash$'
+  } | sort | uniq
+}
+
+BASH_FILES=()
+
+while IFS= read -r file; do
+  BASH_FILES+=("$file")
+done < <(find_bash_files)
+
+if [[ ${#BASH_FILES[@]} -eq 0 ]]; then
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "No Bash files found in the current git repo" >&2
+    exit 0
+  else
+    echo "Not a git repo" >&2
+    exit 1
+  fi
+fi
+
+if ! type shellcheck &>/dev/null; then
+  echo "shellcheck is not installed" >&2
+  exit 1
+fi
+
+if ! type jq &>/dev/null; then
+  echo "jq is not installed" >&2
+  exit 1
+fi
+
+shellcheck -f json "${BASH_FILES[@]}" |
+  jq --raw-output \
+    --argjson types '{"error":"error","info":"notice","style":"notice","warning":"warning"}' \
+    --raw-output '.[] |
+      "::\($types[.level] // "notice") " +
+      "file=\(.file)," +
+      "line=\(.line)," +
+      "endLine=\(.endLine)," +
+      "col=\(.column)," +
+      "endColumn=\(.endColumn)," +
+      "title=ShellCheck SC\(.code) (\(.level))" +
+      "::\(.message) See https://github.com/koalaman/shellcheck/wiki/SC\(.code)"
+    '

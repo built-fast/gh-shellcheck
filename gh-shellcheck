@@ -19,7 +19,7 @@ find_bash_files() {
   {
     git ls-files '**.sh' '**.bash' '**.bats' 2>/dev/null
 
-    git grep --untracked -l -e '^#!/bin/bash' -e '^#!/usr/bin/env bash$'
+    git grep -l -e '^#!/bin/bash' -e '^#!/usr/bin/env bash$'
   } | sort | uniq
 }
 

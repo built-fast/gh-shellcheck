@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Usage: gh-shellcheck
+# Usage: gh shellcheck [options] [path ...]
+#
+# SYNOPIS
+#   gh shellcheck [options]
+#   gh shellcheck [options] -- path [path ...]
+#   gh shellcheck [options] -- :exclude-path [path  :exclude-path ...]
 #
 # NAME
 #   gh shellcheck -- Run shellcheck on bash files in a git repository
@@ -64,7 +69,7 @@ format() {
 
 # Main program
 main() {
-  local bash_files=() args=() fmt=default color=auto untracked=0
+  local bash_files=() args=() fmt=default color=auto untracked=0 path
 
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -133,7 +138,24 @@ main() {
   fi
 
   while IFS= read -r file; do
-    bash_files+=("$file")
+    if [[ "$#" -eq 0 ]]; then
+      bash_files+=("$file")
+      continue
+    fi
+
+    for path in "$@"; do
+      [[ "${path: -1:1}" = "/" ]] && path="${path%/}"
+
+      if [[ "${path:0:1}" = ":" ]]; then
+        path="${path:1}"
+
+        if [[ "$file" != "$path" ]] && [[ "$file" != "$path"/* ]]; then
+          bash_files+=("$file")
+        fi
+      elif [[ "$file" == "$path" ]] || [[ "$file" == "$path"/* ]]; then
+        bash_files+=("$file")
+      fi
+    done
   done < <(find_bash_files "$untracked")
 
   if [[ ${#bash_files[@]} -eq 0 ]]; then

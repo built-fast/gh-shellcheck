@@ -10,16 +10,18 @@ jobs:
   ci:
     name: Run test suite
 
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    permissions:
+      contents: read
 
-      # - name: Install itspriddle/gh-shellcheck
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #   run:
-      #     gh extension install itspriddle/gh-shellcheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Run shellcheck
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          ./gh-shellcheck
+          gh extension install .
+          gh shellcheck

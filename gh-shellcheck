@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
-# Usage: gh-shellcheck
+# Usage: gh shellcheck [options] [-- path ...]
+#
+# SYNOPSIS
+#   gh shellcheck [options]
+#   gh shellcheck [options] -- path [path ...]
+#   gh shellcheck [options] -- :path [path :path ...]
+#
+# EXAMPLES
+#   gh shellcheck                            # Check all bash files
+#   gh shellcheck -- scripts/                # Check only files in scripts/
+#   gh shellcheck -- :tests/                 # Exclude files in tests/
+#   gh shellcheck -- scripts/ :scripts/old/  # Include scripts/, exclude scripts/old/
 #
 # NAME
 #   gh shellcheck -- Run shellcheck on bash files in a git repository
@@ -17,6 +28,47 @@ print_help() {
       awk -v f="${1//-/}" 'f == "h" && $1 == "Usage:" { print; exit }; f != "h"'
     exit 1
   fi
+}
+
+# Check if a file should be included based on include/exclude paths
+should_include_file() {
+  local file="$1"
+  shift
+  local include_paths=()
+  local exclude_paths=()
+  local path
+
+  for path in "$@"; do
+    [[ "${path: -1:1}" = "/" ]] && path="${path%/}"
+
+    if [[ "${path:0:1}" = ":" ]]; then
+      exclude_paths+=("${path:1}")
+    else
+      include_paths+=("$path")
+    fi
+  done
+
+  if [[ ${#include_paths[@]} -gt 0 ]]; then
+    local matches_include=0
+    for path in "${include_paths[@]}"; do
+      if [[ "$file" == "$path" ]] || [[ "$file" == "$path"/* ]]; then
+        matches_include=1
+        break
+      fi
+    done
+
+    if [[ $matches_include -eq 0 ]]; then
+      return 1
+    fi
+  fi
+
+  for path in "${exclude_paths[@]}"; do
+    if [[ "$file" == "$path" ]] || [[ "$file" == "$path"/* ]]; then
+      return 1
+    fi
+  done
+
+  return 0
 }
 
 # Find all bash (or bats) files in the current git repo
@@ -133,7 +185,9 @@ main() {
   fi
 
   while IFS= read -r file; do
-    bash_files+=("$file")
+    if [[ "$#" -eq 0 ]] || should_include_file "$file" "$@"; then
+      bash_files+=("$file")
+    fi
   done < <(find_bash_files "$untracked")
 
   if [[ ${#bash_files[@]} -eq 0 ]]; then

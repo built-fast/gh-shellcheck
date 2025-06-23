@@ -1,32 +1,43 @@
 # gh-shellcheck
 
-This is just a simple script to run ShellCheck on all shell scripts in a
-git repository.
+A simple script to run ShellCheck on all shell scripts in a git repository
+with support for GitHub Actions annotations.
 
-Why?
+## Why?
 
-I end up with at least a few shell scripts in every project I work on. I
-always use ShellCheck locally. I use my own [vim-shellcheck][] plugin to run
-ShellCheck in Vim, but that is per-file. The scripts end up scattered around,
-so I end up having `Makefiles`, or `Rakefiles` that have to manually track all
-the scripts, or at least their directories, if I want to check everything with
-one command. Sure, you could use `shellcheck '**/*.sh'`, but that doesn't work
-if you have scripts without extensions (which tend to be all of mine).
+Most projects end up with at least a few shell scripts scattered around. While
+ShellCheck is great for checking individual files, it becomes tedious to
+manually track all scripts across a project, especially when they don't have
+standard extensions or are located in various directories.
 
-I also want to be able to run ShellCheck on my projects that use GitHub
-Actions. It comes pre-installed, and is easy enough to setup. But, it doesn't
-support GitHub Actions annotations. And, you are left with the same problem of
-tracking the paths to your scripts.
+You could use `shellcheck '**/*.sh'`, but this doesn't work for scripts
+without extensions. Many projects resort to `Makefiles` or `Rakefiles` that
+manually track script paths, but this approach is error-prone and requires
+constant maintenance.
 
-> As I rained blows upon him, I realize there had to be another way.
+For GitHub Actions workflows, ShellCheck comes pre-installed and is easy to
+set up, but it doesn't support GitHub Actions annotations out of the box.
+You're still left with the same problem of tracking script locations.
 
-So, I wrote this script. It is a simple wrapper around ShellCheck that finds
-all shell scripts in a git repository and runs ShellCheck on them. It
-identifies shell scripts by using `git ls-files` to find `*.sh` files, or
-`.bash` files, then using `git grep` to find files with a Bash/Sh shebang. It
-identifies Bats files, too.
+This script solves these issues by automatically discovering all shell scripts
+in a git repository and running ShellCheck on them. It identifies shell
+scripts by using `git ls-files` to find `*.sh`, `*.bash`, and `*.bats` files,
+then uses `git grep` to find files with Bash/Sh shebangs. This catches scripts
+regardless of their file extension or location.
 
-[vim-shellcheck]: https://github.com/itspriddle/vim-shellcheck
+## Installation
+
+Install this extension using the GitHub CLI:
+
+```sh
+gh extension install built-fast/gh-shellcheck
+```
+
+**Prerequisites:**
+
+- [GitHub CLI](https://cli.github.com/) (`gh`)
+- [ShellCheck](https://www.shellcheck.net/)
+- [jq](https://jqlang.github.io/jq/) (for JSON formatting)
 
 ## Local Usage
 
@@ -56,6 +67,32 @@ If you want to scan untracked files, you can use:
 ```sh
 gh shellcheck --untracked
 ```
+
+**Include/Exclude Paths**
+
+You can specify which paths to include or exclude from checking:
+
+```sh
+# Check all files (default)
+gh shellcheck
+
+# Check only files in scripts/ directory
+gh shellcheck -- scripts/
+
+# Exclude files in tests/ directory
+gh shellcheck -- :tests/
+
+# Include scripts/ but exclude scripts/old/
+gh shellcheck -- scripts/ :scripts/old/
+
+# Multiple includes and excludes
+gh shellcheck -- src/ bin/ :src/vendor/ :bin/legacy/
+```
+
+The `--` separator is required when specifying paths. Paths prefixed with `:`
+are excluded, while paths without the prefix are included. If you specify
+include paths, only files matching those paths will be checked. Exclude paths
+are then applied to remove any matching files from the final set.
 
 ## CI Usage
 

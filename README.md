@@ -78,6 +78,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh extension install itspriddle/gh-shellcheck
+          gh extension install built-fast/gh-shellcheck
           gh shellcheck
 ```

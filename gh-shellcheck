@@ -72,7 +72,7 @@ main() {
         echo "gh-shellcheck"
         echo "version: 0.1.0"
         echo "license: MIT"
-        echo "website: https://github.com/itspriddle/gh-shellcheck"
+        echo "website: https://github.com/built-fast/gh-shellcheck"
         echo
         shellcheck --version
         return 0

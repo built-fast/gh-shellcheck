@@ -118,3 +118,7 @@ jobs:
           gh extension install built-fast/gh-shellcheck
           gh shellcheck
 ```
+
+## License
+
+MIT License - see [`LICENSE`](./LICENSE) in this repo.

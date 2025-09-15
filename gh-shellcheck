@@ -6,9 +6,14 @@
 #   gh shellcheck [options] -- path [path ...]
 #   gh shellcheck [options] -- :path [path :path ...]
 #
+# OPTIONS
+#   -l, --list-files                         # List files that would be checked
+#
 # EXAMPLES
 #   gh shellcheck                            # Check all bash files
+#   gh shellcheck -l                         # List all bash files that would be checked
 #   gh shellcheck -- scripts/                # Check only files in scripts/
+#   gh shellcheck -l -- scripts/             # List files in scripts/ that would be checked
 #   gh shellcheck -- :tests/                 # Exclude files in tests/
 #   gh shellcheck -- scripts/ :scripts/old/  # Include scripts/, exclude scripts/old/
 #
@@ -114,9 +119,46 @@ format() {
   esac
 }
 
+# Find files to check based on arguments and filters
+find_files() {
+  local untracked="$1" discovered_files=() include_paths=() all_files=() final_files=() path
+  shift
+
+  while IFS= read -r file; do
+    discovered_files+=("$file")
+  done < <(find_bash_files "$untracked")
+
+  if [[ "$#" -gt 0 ]]; then
+    for path in "$@"; do
+      [[ "${path: -1:1}" = "/" ]] && path="${path%/}"
+      if [[ "${path:0:1}" != ":" ]]; then
+        include_paths+=("$path")
+      fi
+    done
+
+    for path in "${include_paths[@]}"; do
+      if [[ -f "$path" ]]; then
+        discovered_files+=("$path")
+      fi
+    done
+  fi
+
+  while IFS= read -r file; do
+    all_files+=("$file")
+  done < <(printf '%s\n' "${discovered_files[@]}" | sort -u)
+
+  for file in "${all_files[@]}"; do
+    if [[ "$#" -eq 0 ]] || should_include_file "$file" "$@"; then
+      final_files+=("$file")
+    fi
+  done
+
+  printf '%s\n' "${final_files[@]}"
+}
+
 # Main program
 main() {
-  local bash_files=() args=() fmt=default color=auto untracked=0
+  local bash_files=() args=() fmt=default color=auto untracked=0 list_files=0
 
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -131,6 +173,10 @@ main() {
         ;;
       --untracked)
         untracked=1
+        shift
+        ;;
+      -l|--list-files)
+        list_files=1
         shift
         ;;
       -f|--format=*)
@@ -184,38 +230,14 @@ main() {
     fmt=github
   fi
 
-  local discovered_files=()
   while IFS= read -r file; do
-    discovered_files+=("$file")
-  done < <(find_bash_files "$untracked")
+    bash_files+=("$file")
+  done < <(find_files "$untracked" "$@")
 
-  if [[ "$#" -gt 0 ]]; then
-    local include_paths=()
-    local path
-    for path in "$@"; do
-      [[ "${path: -1:1}" = "/" ]] && path="${path%/}"
-      if [[ "${path:0:1}" != ":" ]]; then
-        include_paths+=("$path")
-      fi
-    done
-
-    for path in "${include_paths[@]}"; do
-      if [[ -f "$path" ]]; then
-        discovered_files+=("$path")
-      fi
-    done
+  if [[ "$list_files" -eq 1 ]]; then
+    printf '%s\n' "${bash_files[@]}"
+    return 0
   fi
-
-  local all_files=()
-  while IFS= read -r file; do
-    all_files+=("$file")
-  done < <(printf '%s\n' "${discovered_files[@]}" | sort -u)
-
-  for file in "${all_files[@]}"; do
-    if [[ "$#" -eq 0 ]] || should_include_file "$file" "$@"; then
-      bash_files+=("$file")
-    fi
-  done
 
   if [[ ${#bash_files[@]} -eq 0 ]]; then
     if git rev-parse --is-inside-work-tree &>/dev/null; then

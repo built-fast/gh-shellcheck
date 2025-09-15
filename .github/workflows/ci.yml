@@ -24,4 +24,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh extension install .
-          gh shellcheck
+          make test | tee "$GITHUB_STEP_SUMMARY"

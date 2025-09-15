@@ -184,11 +184,38 @@ main() {
     fmt=github
   fi
 
+  local discovered_files=()
   while IFS= read -r file; do
+    discovered_files+=("$file")
+  done < <(find_bash_files "$untracked")
+
+  if [[ "$#" -gt 0 ]]; then
+    local include_paths=()
+    local path
+    for path in "$@"; do
+      [[ "${path: -1:1}" = "/" ]] && path="${path%/}"
+      if [[ "${path:0:1}" != ":" ]]; then
+        include_paths+=("$path")
+      fi
+    done
+
+    for path in "${include_paths[@]}"; do
+      if [[ -f "$path" ]]; then
+        discovered_files+=("$path")
+      fi
+    done
+  fi
+
+  local all_files=()
+  while IFS= read -r file; do
+    all_files+=("$file")
+  done < <(printf '%s\n' "${discovered_files[@]}" | sort -u)
+
+  for file in "${all_files[@]}"; do
     if [[ "$#" -eq 0 ]] || should_include_file "$file" "$@"; then
       bash_files+=("$file")
     fi
-  done < <(find_bash_files "$untracked")
+  done
 
   if [[ ${#bash_files[@]} -eq 0 ]]; then
     if git rev-parse --is-inside-work-tree &>/dev/null; then

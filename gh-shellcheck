@@ -80,7 +80,7 @@ find_bash_files() {
     grep_args+=(--untracked)
   fi
 
-  grep_args+=(-l -E -e '^#!/bin/(ba)?sh' -e '^#!/usr/bin/env (ba)?sh$')
+  grep_args+=(-l -E -e '^#!/bin/(ba)?sh' -e '^#!/usr/bin/env (ba)?sh$' -e '# *shellcheck shell=(ba)?sh)$')
 
   {
     git ls-files '**.sh' '**.bash' '**.bats' 2>/dev/null
